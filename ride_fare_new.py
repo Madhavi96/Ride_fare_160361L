@@ -38,8 +38,22 @@ X_train
 
 X_train.info()
 
+########### distance harvesian
+'''
+num_rows=X_train.shape[0]
+hour_list = []
+
+for i in range(num_rows):
+  pick_time = X_train.iloc[i]['pickup_time'] 
+  hr = datetime.strptime(pick_time,'%m/%d/%Y %H:%M').hour
+  hour_list.append(hr)
+
+X_train['pick_h'] = hour_list
+'''
+
 X_train.drop('drop_time',axis = 1,inplace=True)
 X_train.drop('pickup_time',axis = 1,inplace=True)
+#X_train.drop('additional_fare',axis = 1,inplace=True)
 
 from numpy import cos, sin, arcsin, sqrt
 from math import radians
@@ -82,30 +96,6 @@ X_train.drop('drop_lat',axis = 1,inplace=True)
 X_train.drop('drop_lon',axis = 1,inplace=True)
 
 X_train['label'] = X_train['label'].replace({'correct':1 , 'incorrect':0})
-
-
-
-
-
-incorrect_means = X_train.loc[X_train['label'] == 0].mean()
-
-X_train_incorrect = X_train.loc[X_train['label'] == 0].fillna(incorrect_means)
-
-
-
-correct_means = X_train.loc[X_train['label'] == 1].mean()
-
-X_train_correct = X_train.loc[X_train['label'] == 1].fillna(correct_means)
-
-
-
-
-
-X =pd.concat([X_train_correct,X_train_incorrect] , axis = 0)
-
-X.isna().sum()
-
-X
 
 !pip install xgboost
 
@@ -151,7 +141,17 @@ grid_search = GridSearchCV(
 grid_search.fit(X, Y)
 
 # fit model no training data
-model = XGBClassifier(n_estimators=1000,colsample_bytree=0.9, max_depth=70,random_state=1,subsample=0.6)
+from xgboost import XGBClassifier
+
+#model = XGBClassifier(n_estimators=450,max_depth=40,random_state=1,objective= 'binary:logistic',)
+model = model = XGBClassifier(base_score=0.5, booster='gbtree', colsample_bylevel=1,
+              colsample_bynode=1, colsample_bytree=1, gamma=0,
+              learning_rate=0.1, max_delta_step=0, max_depth=4,
+              min_child_weight=1, missing=None, n_estimators=380, n_jobs=1,
+              nthread=4, objective='binary:logistic', random_state=0,
+              reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=42,
+              silent=None, subsample=1, verbosity=1)
+
 model.fit(X_train, y_train)
 
 # make predictions for test data
@@ -169,7 +169,29 @@ y_test.value_counts()
 
 predictions.count(0)
 
-predictions.count(1)
+confusion_matrix(y_test, predictions)
+
+
+
+#0.830574187424334
+array([[ 320,  227],
+       [  62, 5060]])
+
+##########################model recreate
+
+new_model = XGBClassifier(base_score=0.5, booster='gbtree', colsample_bylevel=1,
+              colsample_bynode=1, colsample_bytree=1, gamma=0,
+              learning_rate=0.1, max_delta_step=0, max_depth=4,
+              min_child_weight=1, missing=None, n_estimators=380, n_jobs=1,
+              nthread=4, objective='binary:logistic', random_state=0,
+              reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=42,
+              silent=None, subsample=1, verbosity=1)
+
+new_model.fit(X, Y)
+
+
+
+
 
 ###########################################
 
@@ -206,6 +228,35 @@ test_df.drop('drop_lon',axis = 1,inplace=True)
 
 test_df
 
+#################m using new odel
+
+
+
+### NN
+test_preds = new_model.predict(test_df)
+
+test_preds
+
+submission_df = pd.read_csv('/content/drive/My Drive/Ride_Fare/sample_submission.csv',index_col="tripid")
+submission_df.head()
+
+
+
+# Make sure we have the rows in the same order
+
+
+# Save predictions to submission data frame
+submission_df["prediction"] = test_preds
+
+submission_df.head()
+
+# 1_1 clas wight, H= all data, L = part
+submission_df.to_csv('/content/drive/My Drive/Ride_Fare/ride_fare_submission_xgb_410z_5285o.csv', index=True)
+
+submission_df['prediction'].value_counts()
+
+################## using same model
+
 
 
 ### NN
@@ -227,6 +278,13 @@ submission_df["prediction"] = test_preds
 submission_df.head()
 
 # 1_1 clas wight, H= all data, L = part
-submission_df.to_csv('/content/drive/My Drive/Ride_Fare/ride_fare_submission_xgb_410z_5285o.csv', index=True)
+submission_df.to_csv('/content/drive/My Drive/Ride_Fare/ride_fare_submission_xgb_379z.csv', index=True)
 
 submission_df['prediction'].value_counts()
+
+
+
+
+
+
+
